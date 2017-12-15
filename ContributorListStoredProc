@@ -1,0 +1,45 @@
+USE [fg-rock-db]
+GO
+/****** Object:  StoredProcedure [dbo].[custFundraising_Participant_ContributorList]    Script Date: 12/15/2017 3:27:33 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- =============================================
+-- Author:		<Eddie Holeman>
+-- Create date: <6/8/2017>
+-- Description:	<Dynamic Data Block for Mission Trip Contributor List>
+-- =============================================
+ALTER PROCEDURE [dbo].[custFundraising_Participant_ContributorList]
+	-- Add the parameters for the stored procedure here
+	@GroupId INT
+	,@GroupMemberId INT	
+
+
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	-- interfering with SELECT statements.
+	SET NOCOUNT ON;
+
+    -- Insert statements for procedure here
+	SELECT
+		CASE WHEN p.[RecordTypeValueId] = 2 THEN p.[LastName] ELSE p.[NickName]+' '+ p.[LastName] END AS [Contributor]
+		,p.[Email]
+		,l.[Street1] + ' ' + CASE WHEN l.[Street2] IS NOT NULL THEN l.[Street2] ELSE '' END + ' ' + l.[City] + ', ' + l.[State] + ' ' + l.[PostalCode] AS [Address]
+		,CONVERT(varchar, ft.TransactionDateTime, 101) AS [Contribution Date]
+		,gr.[Name] AS [GroupName]
+	FROM [GroupMember] gm
+		LEFT JOIN [Group] AS gr ON gm.GroupId = gr.Id
+		LEFT JOIN [FinancialTransactionDetail] AS ftd ON gm.Id = ftd.EntityId
+		LEFT JOIN [FinancialTransaction] AS ft ON ftd.TransactionId = ft.Id
+		LEFT JOIN [FinancialPaymentDetail] AS fpd ON ft.FinancialPaymentDetailId = fpd.Id
+		LEFT JOIN [PersonAlias] AS pa ON ft.AuthorizedPersonAliasId = pa.Id
+		LEFT JOIN [Person] as p ON pa.PersonId = p.Id
+		LEFT JOIN [GroupMember] AS gmf ON p.Id = gmf.PersonId AND gmf.GroupRoleId = '3'
+		LEFT JOIN [Group] AS g ON gmf.GroupId = g.Id
+		LEFT JOIN [GroupLocation] AS gl ON g.Id = gl.GroupId AND gl.GroupLocationTypeValueId = '19'
+		LEFT JOIN [Location] AS l ON gl.LocationId = l.Id
+	WHERE gm.GroupId = @GroupId AND gm.Id = @GroupMemberId
+	ORDER BY ft.[TransactionDateTime] DESC
+END
